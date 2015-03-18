@@ -1,10 +1,10 @@
 - if current_user.present? == false
   = 'Not logged in'
 - elsif current_user_info.method == 'email'
-  = (current_user.email rescue '')
+  = (current_user.email rescue "Error. Did not set email snippet correctly.")
 - elsif current_user_info.method == 'full_name'
-  = (current_user.full_name rescue '')
+  = (current_user.full_name rescue "Error. Did not set full_name snippet correctly.")
 - elsif current_user_info.method == 'first_name'
-  = (current_user.first_name rescue '')
+  = (current_user.first_name rescue "Error. Did not set first_name snippet correctly.")
 - elsif current_user_info.method == 'last_name'
-  = (current_user.last_name rescue '')
+  = (current_user.last_name rescue "Error. Did not set last_name snippet correctly.")
