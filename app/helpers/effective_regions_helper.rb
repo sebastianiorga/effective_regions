@@ -21,17 +21,20 @@ module EffectiveRegionsHelper
 
   # Loads the Ckeditor Javascript & Stylesheets only when in edit mode
   def effective_regions_include_tags
-    if effectively_editting?
-      javascript_include_tag('effective_ckeditor') + stylesheet_link_tag('effective_ckeditor') +
-      render(:partial => 'effective_regions/include_tags_javascript')
-    end
-  end
+    if effectively_editing?
+      payload = {
+        :snippets => Effective::Snippets::Snippet.all(controller),
+        :templates => Effective::Templates::Template.all(controller)
+      }
 
-  def effectively_editting?
-    @effectively_editting ||= (
-      request.fullpath.include?('edit=true') &&
-      (EffectiveRegions.authorized?(controller, :edit, Effective::Region.new()) rescue false)
-    )
+      if defined?(EffectivePages) && defined?(EffectiveRoles)
+        payload[:roles] = EffectiveRoles.roles_collection(Effective::Menu.new(), current_user)
+        payload[:pages] = ([['', '']] + Effective::Page.order(:title).map { |page| [page.title, page.id] })
+      end
+
+      javascript_include_tag('effective_ckeditor') + stylesheet_link_tag('effective_ckeditor') +
+      render(:partial => 'effective_regions/include_tags_javascript', :locals => {:payload => payload})
+    end
   end
 
   private
@@ -42,7 +45,7 @@ module EffectiveRegionsHelper
     editable_tag = options.delete(:editable_tag) || :div
 
     # Set up the editable div options we need to send to ckeditor
-    if effectively_editting?
+    if effectively_editing?
       opts = {
         :contenteditable => true,
         'data-effective-ckeditor' => (options.delete(:type) || :full).to_s,
@@ -57,7 +60,7 @@ module EffectiveRegionsHelper
 
       region = obj.regions.find { |region| region.title == title }
 
-      if effectively_editting?
+      if effectively_editing?
         can_edit = (EffectiveRegions.authorized?(controller, :update, obj) rescue false)
         opts[:id] = [model_name_from_record_or_class(obj).param_key(), obj.id, title].join('_')
       end
@@ -65,18 +68,18 @@ module EffectiveRegionsHelper
       regions = (@effective_regions_global ||= Effective::Region.global.to_a)
       region = regions.find { |region| region.title == title } || Effective::Region.new(:title => title)
 
-      if effectively_editting?
+      if effectively_editing?
         can_edit = (EffectiveRegions.authorized?(controller, :update, region) rescue false)
         opts[:id] = title.to_s.parameterize
       end
     end
 
-    if effectively_editting? && (can_edit && options[:editable] != false) # If we need the editable div
+    if effectively_editing? && (can_edit && options[:editable] != false) # If we need the editable div
       content_tag(editable_tag, opts) do
-        region.try(:content).present? ? render_region(region, true) : (yield if block_given?; nil)
+        region.try(:content).present? ? render_region(region, true) : (capture(&block) if block_given?)
       end
     else
-      region.try(:content).present? ? render_region(region, false) : (yield if block_given?; nil)
+      region.try(:content).present? ? render_region(region, false) : (capture(&block) if block_given?)
     end
   end
 
@@ -100,7 +103,7 @@ module EffectiveRegionsHelper
       content = render(:partial => snippet.to_partial_path, :object => snippet, :locals => {:snippet => snippet})
     end
 
-    if effectively_editting? && can_edit
+    if effectively_editing? && can_edit
       content_tag(snippet.snippet_tag, content, :data => {'effective-snippet' => snippet.class_name, 'snippet-data' => snippet.data().to_json})
     else
       content
