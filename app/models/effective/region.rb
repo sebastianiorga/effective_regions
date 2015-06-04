@@ -1,5 +1,6 @@
 module Effective
   class Region < ActiveRecord::Base
+    include RegionOverride
     self.table_name = EffectiveRegions.regions_table_name.to_s
 
     belongs_to :regionable, :polymorphic => true, :touch => true
