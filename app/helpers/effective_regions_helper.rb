@@ -23,8 +23,8 @@ module EffectiveRegionsHelper
   def effective_regions_include_tags
     if effectively_editing?
       payload = {
-        :snippets => Effective::Snippets::Snippet.all(controller),
-        :templates => Effective::Templates::Template.all(controller)
+        :snippets => Effective::Snippets::Snippet.definitions(controller),
+        :templates => Effective::Templates::Template.definitions(controller)
       }
 
       if defined?(EffectivePages) && defined?(EffectiveRoles)
@@ -32,7 +32,6 @@ module EffectiveRegionsHelper
         payload[:pages] = ([['', '']] + Effective::Page.order(:title).map { |page| [page.title, page.id] })
       end
 
-      javascript_include_tag('effective_ckeditor') + stylesheet_link_tag('effective_ckeditor') +
       render(:partial => 'effective_regions/include_tags_javascript', :locals => {:payload => payload})
     end
   end
@@ -43,6 +42,7 @@ module EffectiveRegionsHelper
     obj = args.first
     title = args.last.to_s.parameterize
     editable_tag = options.delete(:editable_tag) || :div
+    snippet_locals = options.delete(:snippet_locals) # These get passed into the Snippet.new() model
 
     # Set up the editable div options we need to send to ckeditor
     if effectively_editing?
@@ -62,7 +62,7 @@ module EffectiveRegionsHelper
 
       if effectively_editing?
         can_edit = (EffectiveRegions.authorized?(controller, :update, obj) rescue false)
-        opts[:id] = [model_name_from_record_or_class(obj).param_key(), obj.id, title].join('_')
+        opts[:id] = [model_name_from_record_or_class(obj).param_key(), obj.to_param, title].join('_')
       end
     else # This is a global region
       regions = (@effective_regions_global ||= Effective::Region.global.to_a)
@@ -76,19 +76,19 @@ module EffectiveRegionsHelper
 
     if effectively_editing? && (can_edit && options[:editable] != false) # If we need the editable div
       content_tag(editable_tag, opts) do
-        region.try(:content).present? ? render_region(region, true) : (capture(&block) if block_given?)
+        region.try(:content).present? ? render_region(region, true, snippet_locals) : (capture(&block) if block_given?)
       end
     else
-      region.try(:content).present? ? render_region(region, false) : (capture(&block) if block_given?)
+      region.try(:content).present? ? render_region(region, false, snippet_locals) : (capture(&block) if block_given?)
     end
   end
 
-  def render_region(region, can_edit = true)
+  def render_region(region, can_edit = true, snippet_locals = {})
     return '' unless region
 
     region.content.tap do |html|
       html.scan(/\[(snippet_\d+)\]/).flatten.uniq.each do |id| # find snippet_1 and replace with snippet content
-        snippet = region.snippet_objects.find { |snippet| snippet.id == id }
+        snippet = region.snippet_objects(snippet_locals).find { |snippet| snippet.id == id }
         html.gsub!("[#{id}]", render_snippet(snippet, can_edit)) if snippet
       end
     end.html_safe

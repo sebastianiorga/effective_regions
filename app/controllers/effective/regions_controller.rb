@@ -48,7 +48,7 @@ module Effective
           region.content = cleanup(vals[:content])
 
           region.snippets = HashWithIndifferentAccess.new()
-          (vals[:snippets] || []).each { |snippet, vals| region.snippets[snippet] = vals }
+          (vals[:snippets] || []).each { |snippet, vals| region.snippets[snippet] = HashWithIndifferentAccess.new(vals.to_h) }
 
           # Last chance for a developer to make some changes here
           refresh_page = true if (run_before_save_method(region, regionable) rescue nil) == :refresh
@@ -71,6 +71,8 @@ module Effective
     end
 
     def snippet # This is a GET.  CKEDITOR passes us data, we need to render the non-editable content
+      EffectiveRegions.authorized?(self, :edit, Effective::Region.new())
+
       klass = "Effective::Snippets::#{region_params[:name].try(:classify)}".safe_constantize
 
       if klass.present?
