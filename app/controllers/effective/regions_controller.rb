@@ -6,7 +6,7 @@ module Effective
     # before_filter :authenticate_user! if defined?(Devise)
     skip_log_page_views :quiet => true, :only => [:snippet] if defined?(EffectiveLogging)
 
-    skip_before_filter :verify_authenticity_token, :only => [:update]
+    skip_before_action :verify_authenticity_token, :only => [:update]
 
     def edit
       EffectiveRegions.authorized?(self, :edit, Effective::Region.new())
